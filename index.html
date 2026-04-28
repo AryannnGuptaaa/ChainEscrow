@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ChainEscrow</title>
+
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      text-align: center;
+      margin: 0;
+    }
+
+    h1 {
+      margin-top: 20px;
+      font-size: 28px;
+    }
+
+    .container {
+      background: white;
+      color: black;
+      padding: 25px;
+      border-radius: 12px;
+      width: 520px;
+      margin: auto;
+      margin-top: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 8px;
+      width: 90%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border: 1px solid #667eea;
+      box-shadow: 0 0 5px #667eea;
+    }
+
+    button {
+      background: #667eea;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #5a67d8;
+      transform: scale(1.02);
+    }
+
+    .secondary-btn {
+      background: #38bdf8;
+    }
+
+    .secondary-btn:hover {
+      background: #0ea5e9;
+    }
+
+    .wallet {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #444;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      word-break: break-all;
+    }
+
+    th {
+      background: #667eea;
+      color: white;
+    }
+
+    .status-complete {
+      color: green;
+      font-weight: bold;
+    }
+
+    .status-pending {
+      color: orange;
+      font-weight: bold;
+    }
+
+    .section-title {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>🚀 ChainEscrow: A Blockchain-Based Freelance Payment System</h1>
+
+<div class="container">
+
+<button onclick="connectWallet()">🔗 Connect Wallet</button>
+<p id="wallet" class="wallet">Not Connected</p>
+
+<div class="section-title">Create Project</div>
+<input id="freelancer" placeholder="Freelancer Address">
+<input id="amount" placeholder="ETH Amount">
+<button onclick="createProject()">Create Project</button>
+
+<div class="section-title">Release Payment</div>
+<input id="projectId" placeholder="Project ID">
+<button class="secondary-btn" onclick="releasePayment()">Release Payment</button>
+
+<button onclick="loadProjects()">🔄 Load Projects</button>
+
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Freelancer</th>
+<th>Amount (ETH)</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody id="projectTable"></tbody>
+</table>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+
+<script>
+let contract;
+let signer;
+
+const contractAddress = "0xfbfbfDdd6e35dA57b7B0F9a2C10E34Be70B3A4E9";
+
+const abi = [
+  "function createProject(address freelancer) payable",
+  "function releasePayment(uint projectId)",
+  "function getProjects() view returns (tuple(address client,address freelancer,uint amount,bool isCompleted)[])"
+];
+
+async function connectWallet() {
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    signer = await provider.getSigner();
+
+    const address = await signer.getAddress();
+    document.getElementById("wallet").innerText = "Connected: " + address;
+
+    contract = new ethers.Contract(contractAddress, abi, signer);
+
+  } catch (err) {
+    alert("Connection Failed");
+    console.error(err);
+  }
+}
+
+async function createProject() {
+  try {
+    let freelancer = document.getElementById("freelancer").value.trim();
+    let amount = document.getElementById("amount").value.trim();
+
+    if (!ethers.isAddress(freelancer)) {
+      alert("Invalid Address");
+      return;
+    }
+
+    const tx = await contract.createProject(freelancer, {
+      value: ethers.parseEther(amount)
+    });
+
+    await tx.wait();
+
+    alert("Project Created 🚀");
+    loadProjects();
+
+  } catch (err) {
+    console.error(err);
+    alert("Error creating project");
+  }
+}
+
+async function releasePayment() {
+  try {
+    let id = document.getElementById("projectId").value;
+
+    const tx = await contract.releasePayment(id);
+    await tx.wait();
+
+    alert("Payment Released 💸");
+    loadProjects();
+
+  } catch (err) {
+    console.error(err);
+    alert("Error releasing payment");
+  }
+}
+
+async function loadProjects() {
+  try {
+    const projects = await contract.getProjects();
+
+    const table = document.getElementById("projectTable");
+    table.innerHTML = "";
+
+    projects.forEach((p, index) => {
+      const row = `
+        <tr>
+          <td>${index}</td>
+          <td>${p.freelancer}</td>
+          <td>${ethers.formatEther(p.amount)}</td>
+          <td class="${p.isCompleted ? 'status-complete' : 'status-pending'}">
+            ${p.isCompleted ? "Completed" : "Pending"}
+          </td>
+        </tr>
+      `;
+      table.innerHTML += row;
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Error loading projects");
+  }
+}
+</script>
+
+</body>
+</html>
